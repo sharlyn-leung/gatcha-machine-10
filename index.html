@@ -38,6 +38,7 @@ ul{text-align:left;max-height:120px;overflow-y:auto;color:#57606f;width:100%;pad
 .redirect-footer a{color:#1e90ff;text-decoration:none;font-weight:bold;margin-left:5px}
 .section-title{margin:15px 0 8px 0;font-size:14px;font-weight:bold;color:#2f3542}
 .toggle-wrapper{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:14px;color:#2f3542;font-weight:bold}
+.notice-box{background:#fff0f0;border-left:4px solid #ff4757;padding:8px 12px;font-size:12px;color:#d63031;border-radius:4px;line-height:1.4}
 </style>
 </head>
 <body>
@@ -59,9 +60,17 @@ ul{text-align:left;max-height:120px;overflow-y:auto;color:#57606f;width:100%;pad
       <!-- Music Form Block (Hidden by default) -->
       <div id="music-setup-block" style="display:none;flex-direction:column;gap:8px;background:#f8f9fa;padding:12px;border-radius:10px;">
         <div style="font-size:13px;color:#57606f;font-weight:bold;">Add Songs (Up to 10):</div>
+        
+        <!-- Instruction Notice for Users -->
+        <div class="notice-box">
+          ⚠️ <strong>Must be a direct audio file URL (.mp3)</strong><br>
+          • 🟢 Works: Direct file links ending in <code>.mp3</code><br>
+          • ❌ Won't work: YouTube, Spotify, or Soundcloud links
+        </div>
+
         <div style="display:flex;gap:6px;">
-          <input type="text" id="song-title-input" placeholder="Song Title (e.g. Song 1)" style="flex:1;padding:8px;">
-          <input type="text" id="song-url-input" placeholder="Audio URL (.mp3)..." style="flex:1.5;padding:8px;">
+          <input type="text" id="song-title-input" placeholder="Song Title" style="flex:1;padding:8px;">
+          <input type="text" id="song-url-input" placeholder="https://example.com/song.mp3" style="flex:1.5;padding:8px;">
         </div>
         <button id="add-song-btn" class="btn" style="background:#70a1ff;padding:8px;font-size:14px;border-radius:8px;">+ Add Song (<span id="song-count">0</span>/10)</button>
         <ul id="song-list"></ul>
@@ -107,14 +116,13 @@ ul{text-align:left;max-height:120px;overflow-y:auto;color:#57606f;width:100%;pad
 <script>
 let masterPool = [];
 let activeDeck = [];
-let songPool = []; // [{ title: "...", url: "..." }]
+let songPool = [];
 let lastPickText = "";
 let recipient = "Someone Special";
 
 const cleanUrl = window.location.origin + window.location.pathname;
 document.getElementById("creator-link").href = cleanUrl;
 
-// Parse parameters from URL
 const urlParams = new URLSearchParams(window.location.search);
 const data = urlParams.get('pool');
 const user = urlParams.get('to');
@@ -141,12 +149,10 @@ if (data) {
   document.getElementById("create-page").classList.add("active-view");
 }
 
-// Toggle Music Input UI
 document.getElementById("music-toggle").addEventListener("change", (e) => {
   document.getElementById("music-setup-block").style.display = e.target.checked ? "flex" : "none";
 });
 
-// Song Management
 document.getElementById("add-song-btn").addEventListener("click", () => {
   if (songPool.length >= 10) {
     alert("You can add up to 10 songs maximum!");
@@ -182,7 +188,6 @@ window.deleteSong = function(i) {
   renderSongs();
 };
 
-// Capsule Management
 function renderList() {
   const l = document.getElementById("message-list");
   l.innerHTML = "";
@@ -217,7 +222,6 @@ document.getElementById("add-button").addEventListener("click", () => {
   }
 });
 
-// Share Link Generation
 document.getElementById("share-button").addEventListener("click", () => {
   if (!masterPool.length) return;
   const poolBase64 = btoa(encodeURIComponent(JSON.stringify(masterPool)));
@@ -231,7 +235,6 @@ document.getElementById("share-button").addEventListener("click", () => {
   navigator.clipboard.writeText(finalUrl).then(() => alert("✨ Link copied!"));
 });
 
-// Setup Receiver Music Player
 function setupReceiverMusicPlayer() {
   const musicBox = document.getElementById("music-box");
   const select = document.getElementById("playlist-select");
@@ -246,15 +249,22 @@ function setupReceiverMusicPlayer() {
   });
 
   audio.src = songPool[0].url;
+
   select.addEventListener("change", (e) => {
     audio.src = e.target.value;
-    audio.play();
+    audio.play().catch(() => {});
   });
+
+  // Enable autoplay on initial user tap anywhere (bypasses mobile browser autoplay block)
+  document.body.addEventListener('click', () => {
+    if (audio.paused && audio.src) {
+      audio.play().catch(() => {});
+    }
+  }, { once: true });
 
   musicBox.style.display = "flex";
 }
 
-// Gacha Gameplay Logic
 const gachaBtn = document.getElementById("gacha-button");
 const capsule = document.getElementById("gacha-capsule");
 const prizeBox = document.getElementById("prize-box");
