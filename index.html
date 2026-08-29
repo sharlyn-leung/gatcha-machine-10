@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Gacha Machine</title>
+<style>
+body,html{margin:0;padding:0;width:100%;height:100%;font-family:sans-serif;overflow:hidden;background:#f7f9fc}
+.gacha-container{background:url('machine.jpeg') no-repeat center center/cover;width:100vw;height:100vh;display:flex;flex-direction:column;justify-content:center;align-items:center;position:relative;box-sizing:border-box}
+.recipient-header{font-size:26px;font-weight:bold;color:#ff4757;background:rgba(255,255,255,.9);padding:10px 25px;border-radius:20px;box-shadow:0 4px 15px rgba(0,0,0,.1);margin-bottom:25px;z-index:10}
+
+/* Left Sidebar for Receiver Music Selection */
+.music-sidebar-left{position:absolute;top:20px;left:20px;background:rgba(255,255,255,.95);padding:12px 18px;border-radius:15px;box-shadow:0 4px 15px rgba(0,0,0,.08);z-index:100;display:flex;flex-direction:column;align-items:flex-start;gap:8px;max-width:260px;width:80%}
+.playlist-select{width:100%;padding:6px;border-radius:8px;border:1px solid #dcdde1;outline:none;font-size:13px;background:#fff;cursor:pointer}
+
+@keyframes shake{0%,100%{transform:translate(0,0)}20%{transform:translate(-5px,2px)}40%{transform:translate(4px,-2px)}60%{transform:translate(-3px,-3px)}80%{transform:translate(5px,4px)}}
+.is-shaking{animation:shake .12s infinite}
+#gacha-capsule{position:fixed;top:0;left:0;width:100vw;height:100vh;background:url('capsule.jpeg') no-repeat center center/contain;cursor:pointer;display:none;z-index:200}
+@keyframes massiveShake{0%{transform:scale(1) rotate(0deg)}10%{transform:scale(1.05) rotate(-3deg) translate(-10px,8px)}20%{transform:scale(.98) rotate(3deg) translate(12px,-10px)}40%{transform:scale(.95) rotate(4deg) translate(10px,12px)}60%{transform:scale(.97) rotate(2deg) translate(6px,10px)}80%{transform:scale(.99) rotate(3deg) translate(8px,-12px)}100%{transform:scale(1) rotate(0deg)}}
+.is-massive-shaking{animation:massiveShake .18s infinite;display:block!important}
+#click-tip{position:fixed;top:15%;left:50%;transform:translateX(-50%);font-weight:bold;color:#ff4757;font-size:28px;background:#fff;padding:12px 30px;border-radius:50px;box-shadow:0 10px 30px rgba(0,0,0,.25);white-space:nowrap;display:none;z-index:250}
+@keyframes blink{0%,100%{opacity:1;transform:translateX(-50%) scale(1)}50%{opacity:.5;transform:translateX(-50%) scale(1.05)}}
+.is-blinking{animation:blink .6s infinite;display:block!important}
+.prize-card{padding:30px;background:rgba(255,249,230,.98);border:3px dashed #ffa502;border-radius:20px;width:300px;text-align:center;box-shadow:0 15px 40px rgba(0,0,0,.3);z-index:300;display:none;position:absolute;top:50%;left:50%;transform:translate(-50%,-50%)}
+.pull-btn,.btn{background:#ff4757;color:#fff;border:none;padding:14px 35px;font-size:20px;border-radius:30px;cursor:pointer;font-weight:bold;box-shadow:0 4px 15px rgba(255,71,87,.4);z-index:10}
+.pull-btn:disabled{background:#a4b0be;cursor:not-allowed;box-shadow:none}
+.page-view{display:none;width:100%;height:100%;flex-direction:column;align-items:center;justify-content:center;overflow-y:auto}
+.active-view{display:flex}
+.setup-container{background:#fff;padding:30px;border-radius:20px;box-shadow:0 8px 30px rgba(0,0,0,.12);width:90%;max-width:460px;box-sizing:border-box;margin:20px 0}
+.input-group{display:flex;flex-direction:column;gap:12px;margin-bottom:15px}
+input{padding:12px;font-size:15px;border:2px solid #e4e7eb;border-radius:10px;outline:none}
+.add-btn{background:#2ed573;border-radius:10px}
+.share-btn{background:#1e90ff;margin-top:15px;width:100%;border-radius:10px}
+ul{text-align:left;max-height:120px;overflow-y:auto;color:#57606f;width:100%;padding:0;box-sizing:border-box;list-style:none}
+.list-item{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#f1f2f6;border-radius:8px;margin-bottom:6px;font-size:14px}
+.del-btn{background:#ff4757;color:#fff;border:none;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:11px}
+.redirect-footer{margin-top:35px;font-size:15px;color:#57606f;background:rgba(255,255,255,0.9);padding:12px 25px;border-radius:30px;box-shadow:0 4px 12px rgba(0,0,0,0.1);z-index:10}
+.redirect-footer a{color:#1e90ff;text-decoration:none;font-weight:bold;margin-left:5px}
+.section-title{margin:15px 0 8px 0;font-size:14px;font-weight:bold;color:#2f3542}
+.toggle-wrapper{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:14px;color:#2f3542;font-weight:bold}
+</style>
+</head>
+<body>
+
+<!-- CREATOR PAGE -->
+<div id="create-page" class="page-view">
+  <div class="setup-container">
+    <h2 style="margin-top:0;color:#ff4757;text-align:center;">🎁 Gift Machine Builder</h2>
+    
+    <div class="input-group">
+      <input type="text" id="recipient-input" placeholder="Who is this whole gift for?">
+      
+      <!-- Option to enable or disable music -->
+      <div class="toggle-wrapper">
+        <input type="checkbox" id="music-toggle" style="width:18px;height:18px;cursor:pointer;">
+        <label for="music-toggle" style="cursor:pointer;">Include Music Playlist?</label>
+      </div>
+
+      <!-- Music Form Block (Hidden by default) -->
+      <div id="music-setup-block" style="display:none;flex-direction:column;gap:8px;background:#f8f9fa;padding:12px;border-radius:10px;">
+        <div style="font-size:13px;color:#57606f;font-weight:bold;">Add Songs (Up to 10):</div>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="song-title-input" placeholder="Song Title (e.g. Song 1)" style="flex:1;padding:8px;">
+          <input type="text" id="song-url-input" placeholder="Audio URL (.mp3)..." style="flex:1.5;padding:8px;">
+        </div>
+        <button id="add-song-btn" class="btn" style="background:#70a1ff;padding:8px;font-size:14px;border-radius:8px;">+ Add Song (<span id="song-count">0</span>/10)</button>
+        <ul id="song-list"></ul>
+      </div>
+
+      <div class="section-title">Surprise Capsules:</div>
+      <input type="text" id="message-input" placeholder="Type a capsule surprise message...">
+      <button id="add-button" class="btn add-btn">Add Capsule to Gift Box</button>
+    </div>
+
+    <h4>Added Capsules (<span id="capsule-count">0</span>):</h4>
+    <ul id="message-list"></ul>
+    
+    <button id="share-button" class="btn share-btn" style="display:none;">🔗 Copy Gift Playground Link</button>
+  </div>
+</div>
+
+<!-- PLAY PAGE -->
+<div id="play-page" class="page-view">
+  <!-- Left Side Music Player -->
+  <div class="music-sidebar-left" id="music-box" style="display:none;">
+    <div style="font-size:12px;font-weight:bold;color:#57606f;">🎵 Pick a Track:</div>
+    <select id="playlist-select" class="playlist-select"></select>
+    <audio id="bg-audio" controls loop style="width:100%;height:32px;"></audio>
+  </div>
+
+  <div class="gacha-container" id="machine-wrapper">
+    <div class="recipient-header" id="display-recipient">To: Someone Special</div>
+    <div id="click-tip">👇 CLICK TO OPEN!</div>
+    <div id="gacha-capsule"></div>
+    
+    <div class="prize-card" id="prize-box">
+      <p id="display-message" style="margin:0;font-size:22px;font-weight:bold;color:#2f3542;"></p>
+      <button class="btn" style="margin-top:20px;padding:8px 20px;font-size:14px;background:#ff4757;" onclick="closePrize()">Close</button>
+    </div>
+    
+    <button id="gacha-button" class="pull-btn">Pull Gacha!</button>
+    
+    <div class="redirect-footer">want to create ur own? <a id="creator-link" href="#">click this link to create</a></div>
+  </div>
+</div>
+
+<script>
+let masterPool = [];
+let activeDeck = [];
+let songPool = []; // [{ title: "...", url: "..." }]
+let lastPickText = "";
+let recipient = "Someone Special";
+
+const cleanUrl = window.location.origin + window.location.pathname;
+document.getElementById("creator-link").href = cleanUrl;
+
+// Parse parameters from URL
+const urlParams = new URLSearchParams(window.location.search);
+const data = urlParams.get('pool');
+const user = urlParams.get('to');
+const musicData = urlParams.get('bgm');
+
+if (data) {
+  try {
+    masterPool = JSON.parse(decodeURIComponent(atob(data)));
+    activeDeck = [...masterPool];
+    recipient = user ? decodeURIComponent(user) : recipient;
+    document.getElementById("display-recipient").innerText = "To: " + recipient;
+
+    if (musicData) {
+      songPool = JSON.parse(decodeURIComponent(atob(musicData)));
+      if (songPool.length > 0) {
+        setupReceiverMusicPlayer();
+      }
+    }
+    document.getElementById("play-page").classList.add("active-view");
+  } catch(e) {
+    document.getElementById("create-page").classList.add("active-view");
+  }
+} else {
+  document.getElementById("create-page").classList.add("active-view");
+}
+
+// Toggle Music Input UI
+document.getElementById("music-toggle").addEventListener("change", (e) => {
+  document.getElementById("music-setup-block").style.display = e.target.checked ? "flex" : "none";
+});
+
+// Song Management
+document.getElementById("add-song-btn").addEventListener("click", () => {
+  if (songPool.length >= 10) {
+    alert("You can add up to 10 songs maximum!");
+    return;
+  }
+  const titleInput = document.getElementById("song-title-input");
+  const urlInput = document.getElementById("song-url-input");
+  const title = titleInput.value.trim() || `Song ${songPool.length + 1}`;
+  const url = urlInput.value.trim();
+
+  if (url) {
+    songPool.push({ title, url });
+    titleInput.value = "";
+    urlInput.value = "";
+    renderSongs();
+  }
+});
+
+function renderSongs() {
+  const list = document.getElementById("song-list");
+  list.innerHTML = "";
+  songPool.forEach((s, i) => {
+    const li = document.createElement("li");
+    li.className = "list-item";
+    li.innerHTML = `<span>🎵 ${s.title}</span> <button class="del-btn" onclick="deleteSong(${i})">❌</button>`;
+    list.appendChild(li);
+  });
+  document.getElementById("song-count").innerText = songPool.length;
+}
+
+window.deleteSong = function(i) {
+  songPool.splice(i, 1);
+  renderSongs();
+};
+
+// Capsule Management
+function renderList() {
+  const l = document.getElementById("message-list");
+  l.innerHTML = "";
+  masterPool.forEach((m, i) => {
+    const li = document.createElement("li");
+    li.className = "list-item";
+    li.innerHTML = `<span>"${m}"</span> <button class="del-btn" onclick="deleteCapsule(${i})">❌</button>`;
+    l.appendChild(li);
+  });
+  document.getElementById("capsule-count").innerText = masterPool.length;
+  document.getElementById("share-button").style.display = masterPool.length > 0 ? "block" : "none";
+  if (!masterPool.length) {
+    document.getElementById("recipient-input").disabled = false;
+  }
+}
+
+window.deleteCapsule = function(i) {
+  masterPool.splice(i, 1);
+  renderList();
+};
+
+document.getElementById("add-button").addEventListener("click", () => {
+  const m = document.getElementById("message-input").value.trim();
+  if (document.getElementById("recipient-input").value.trim()) {
+    recipient = document.getElementById("recipient-input").value.trim();
+  }
+  if (m) {
+    masterPool.push(m);
+    document.getElementById("message-input").value = "";
+    document.getElementById("recipient-input").disabled = true;
+    renderList();
+  }
+});
+
+// Share Link Generation
+document.getElementById("share-button").addEventListener("click", () => {
+  if (!masterPool.length) return;
+  const poolBase64 = btoa(encodeURIComponent(JSON.stringify(masterPool)));
+  let finalUrl = `${cleanUrl}?to=${encodeURIComponent(recipient)}&pool=${poolBase64}`;
+  
+  if (document.getElementById("music-toggle").checked && songPool.length > 0) {
+    const musicBase64 = btoa(encodeURIComponent(JSON.stringify(songPool)));
+    finalUrl += `&bgm=${musicBase64}`;
+  }
+
+  navigator.clipboard.writeText(finalUrl).then(() => alert("✨ Link copied!"));
+});
+
+// Setup Receiver Music Player
+function setupReceiverMusicPlayer() {
+  const musicBox = document.getElementById("music-box");
+  const select = document.getElementById("playlist-select");
+  const audio = document.getElementById("bg-audio");
+
+  select.innerHTML = "";
+  songPool.forEach((song, i) => {
+    const opt = document.createElement("option");
+    opt.value = song.url;
+    opt.textContent = `${i + 1}. ${song.title}`;
+    select.appendChild(opt);
+  });
+
+  audio.src = songPool[0].url;
+  select.addEventListener("change", (e) => {
+    audio.src = e.target.value;
+    audio.play();
+  });
+
+  musicBox.style.display = "flex";
+}
+
+// Gacha Gameplay Logic
+const gachaBtn = document.getElementById("gacha-button");
+const capsule = document.getElementById("gacha-capsule");
+const prizeBox = document.getElementById("prize-box");
+const wrapper = document.getElementById("machine-wrapper");
+const clickTip = document.getElementById("click-tip");
+
+gachaBtn.addEventListener("click", () => {
+  if (!masterPool.length) return;
+  gachaBtn.disabled = true;
+  prizeBox.style.display = "none";
+  capsule.style.display = "none";
+  clickTip.style.display = "none";
+  capsule.className = "";
+  clickTip.className = "";
+  
+  wrapper.classList.add("is-shaking");
+  setTimeout(() => {
+    wrapper.classList.remove("is-shaking");
+    capsule.classList.add("is-massive-shaking");
+    clickTip.classList.add("is-blinking");
+  }, 400);
+});
+
+capsule.addEventListener("click", () => {
+  if (activeDeck.length === 0) activeDeck = [...masterPool];
+  let r = Math.floor(Math.random() * activeDeck.length);
+  if (masterPool.length > 1 && activeDeck[r] === lastPickText) {
+    r = (r + 1) % activeDeck.length;
+  }
+  let c = activeDeck[r];
+  lastPickText = c;
+  document.getElementById("display-message").innerText = c;
+  activeDeck.splice(r, 1);
+  
+  capsule.style.display = "none";
+  clickTip.style.display = "none";
+  capsule.className = "";
+  clickTip.className = "";
+  prizeBox.style.display = "block";
+});
+
+window.closePrize = function() {
+  prizeBox.style.display = "none";
+  gachaBtn.disabled = false;
+};
+</script>
+</body>
+</html>
